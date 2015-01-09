@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Particle Test</title>
+
+<style>
+* { margin:0; padding:0; } /* to remove the top and left whitespace */
+
+html, body { width:100%; height:100%; overflow: hidden;} /* just to be sure these are full screen*/
+
+canvas { display:block; } /* To remove the scrollbars */
+
+
+/* to show the canvas bounds */
+canvas {
+    background: #000;
+}
+</style>
+
+
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+// Create the canvas
+var canvas = document.getElementById("canvas");
+var testdiv = document.getElementById("testdiv");
+var gravityslider = document.getElementById("gravityslider");
+var infospan = document.getElementById("info");
+var ctx = canvas.getContext("2d");
+canvas.width = 800;
+canvas.height = 600;
+
+function Emitter(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
+function Effect(x, y, gravity) {
+	this.x = x;
+	this.y = y;
+	this.gravity = gravity;
+}
+
+
+function Particle(x, y, vx, vy) {
+	this.x = x;
+	this.y = y;
+	this.vx = vx;
+	this.vy = vy;
+}
+
+var PARTICLE_COUNT = 15000;
+var p_index = 0;
+var show_ee = true;
+var emitterlist = new Array();
+var effectlist = new Array();
+var particlelist = new Array(PARTICLE_COUNT);
+
+//Handle mouse
+document.onmousedown = function() {
+	if(_x < canvas.width && _y < canvas.height)
+	{
+		if(65 in keysDown) //A down
+		{
+			var gravity = 0.2;
+			var effect = new Effect(_x,_y,gravity);
+			effectlist.push(effect);
+		}
+		else if(83 in keysDown) //S down
+		{
+			var gravity = -0.2;
+			var effect = new Effect(_x,_y,gravity);
+			effectlist.push(effect);
+		}
+		else
+		{
+			var emitter = new Emitter(_x,_y);
+			emitterlist.push(emitter);
+		}
+	}
+};
+
+document.onmouseup = function() {
+};
+
+//Get mouseposition
+(function() {
+	window.onmousemove = handleMouseMove;
+	function handleMouseMove(event) {
+		event = event || window.event; // IE-ism
+		// event.clientX and event.clientY contain the mouse position
+		_x = event.clientX;
+		_y = event.clientY;
+	}
+})();
+
+
+
+// Handle keyboard controls
+var keysDown = {};
+
+addEventListener("keydown", function (e) {
+	keysDown[e.keyCode] = true;
+	if(e.keyCode == 32) //space down
+	{
+		show_ee = !show_ee;
+	}
+	else if(e.keyCode == 87) //W down
+	{
+		effectlist.pop();
+	}
+	else if(e.keyCode == 81) //Q down
+	{
+			emitterlist.pop();
+	}
+}, false);
+
+addEventListener("keyup", function (e) {
+	delete keysDown[e.keyCode];
+}, false);
+
+var spawnParticle = function (i) {
+	var r = Math.random()*Math.PI*2;
+	var vxx = Math.cos(r)*0.5;
+	var vyy = Math.sin(r)*0.5;
+	var xx = emitterlist[i].x;
+	var yy = emitterlist[i].y;
+	particlelist[p_index] = new Particle(xx, yy, vxx, vyy);
+
+	p_index++;
+	if(p_index > PARTICLE_COUNT) p_index = 0;
+};
+
+var applyEffect = function (i) {
+	var xx = particlelist[i].x;
+	var yy = particlelist[i].y;
+	for(var j=0; j<effectlist.length; j++)
+	{
+		var ex = effectlist[j].x;
+		var ey = effectlist[j].y;
+		var x = (xx-ex);
+		var y = (yy-ey);
+		var distance2 = x*x+y*y;
+		x /= distance2;
+		y /= distance2;
+		particlelist[i].vx -= effectlist[j].gravity*x;
+		particlelist[i].vy -= effectlist[j].gravity*y;
+	}
+};
+
+// The main loop
+var loop = function () {
+	//draw stuff
+
+	//clear
+	ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+	ctx.fillRect(0,0,canvas.width,canvas.height);
+
+	if(show_ee)
+	{
+		ctx.fillStyle = "rgb(155, 155, 155)";
+		ctx.font = "17px Arial";
+		ctx.fillText("Klicka för att placera partikelkälla.",10,20);
+		ctx.fillText("A+klicka för att placera positiv gravitationskälla.",10,40);
+		ctx.fillText("S+klicka för att placera negativ gravitationskälla.",10,60);
+		ctx.fillText("Tryck på space för att gömma källor och text.",10,80);
+		ctx.fillText("Tryck på Q för att ta bort senast tillagd partikelkälla.",10,100);
+		ctx.fillText("Tryck på W för att ta bort senast tillagd gravitationskälla.",10,120);
+	}
+
+	for(var i=0; i<emitterlist.length; i++)
+	{
+		var xx = emitterlist[i].x;
+		var yy = emitterlist[i].y;
+		ctx.strokeStyle = "rgb(255, 255, 255)";
+		ctx.beginPath();
+		ctx.arc(xx,yy,5,0,2*Math.PI);
+		//ctx.fill();
+		if(show_ee) ctx.stroke();
+
+		spawnParticle(i);
+	}
+	for(var i=0; i<effectlist.length; i++)
+	{
+		var xx = effectlist[i].x;
+		var yy = effectlist[i].y;
+		if(effectlist[i].gravity > 0)
+		{
+			var r = 0;
+			var g = 255;
+		}
+		else
+		{
+			var r = 255;
+			var g = 0;
+		}
+
+		ctx.strokeStyle = "rgba(0,0,0,0.5)";
+		ctx.fillStyle = "rgba("+r+","+g+","+0+",0.5)";
+		ctx.beginPath();
+		ctx.arc(xx,yy,5,0,2*Math.PI);
+		if(show_ee) ctx.fill();
+		if(show_ee) ctx.stroke();
+	}
+
+	for(var i=0; i<particlelist.length; i++)
+	{
+		particlelist[i].x += particlelist[i].vx;
+		particlelist[i].y += particlelist[i].vy;
+		xx = particlelist[i].x;
+		yy = particlelist[i].y;
+		vx = particlelist[i].vx;
+		vy = particlelist[i].vy;
+		var c = 255;
+		ctx.fillStyle = "rgb("+c+","+c+","+c+")";
+		ctx.fillRect(xx,yy,1,1);
+		applyEffect(i);
+	}
+};
+
+// Let's play this game!
+var then = Date.now();
+setInterval(loop, 16); // Execute as fast as possible
+
+//resize window
+(function() {
+        canvas = document.getElementById('canvas'),
+                context = canvas.getContext('2d');
+
+        // resize the canvas to fill browser window dynamically
+        window.addEventListener('resize', resizeCanvas, false);
+        
+        function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                /**
+                 * Your drawings need to be inside this function otherwise they will be reset when 
+                 * you resize the browser window and the canvas goes will be cleared.
+                 */
+                loop(); 
+        }
+        resizeCanvas();
+})();
+
+
+</script>
+
+</body>
+</html>
